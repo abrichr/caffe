@@ -153,7 +153,7 @@ else ifeq ($(UNAME), Darwin)
 endif
 
 ifeq ($(LINUX), 1)
-	CXX := /usr/bin/g++
+	CXX := /usr/bin/g++-4.6 #/usr/bin/g++
 endif
 
 # OS X:
@@ -167,7 +167,7 @@ ifeq ($(OSX), 1)
 endif
 
 # Debugging
-DEBUG ?= 0
+DEBUG ?= 1
 ifeq ($(DEBUG), 1)
 	COMMON_FLAGS := -DDEBUG -g -O0
 else
@@ -176,11 +176,12 @@ endif
 
 # BLAS configuration (default = ATLAS)
 BLAS ?= atlas
+$(BLAS: $BLAS)
 ifeq ($(BLAS), mkl)
 	# MKL
 	LIBRARIES += mkl_rt
 	COMMON_FLAGS += -DUSE_MKL
-	MKL_DIR = /opt/intel/mkl
+	MKL_DIR = /opt/intel/composer_xe_2013_sp1.0.080/mkl
 	BLAS_INCLUDE ?= $(MKL_DIR)/include
 	BLAS_LIB ?= $(MKL_DIR)/lib $(MKL_DIR)/lib/intel64
 else ifeq ($(BLAS), open)

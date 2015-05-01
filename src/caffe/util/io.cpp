@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <fstream>  // NOLINT(readability/streams)
+#include <iostream>
 
 #include "caffe/common.hpp"
 #include "caffe/util/io.hpp"
@@ -100,6 +101,111 @@ bool ReadImageToDatum(const string& filename, const int label,
     }
   }
   return true;
+}
+
+bool ReadAndResizeImageToDatum(const string& filename, const int label,
+    const int height, const int width, int new_height, int new_width,
+    Datum* datum) {
+  cv::Mat cv_img;
+  if (height > 0 && width > 0) {
+    cv::Mat cv_img_origin = cv::imread(filename, CV_LOAD_IMAGE_COLOR);
+    cv::resize(cv_img_origin, cv_img, cv::Size(height, width));
+  } else {
+    cv_img = cv::imread(filename, CV_LOAD_IMAGE_COLOR);
+  }
+  LOG(INFO) << "Opened image" << std::endl;
+  if (!cv_img.data) {
+    LOG(ERROR) << "Could not open or find file " << filename;
+    return false;
+  }
+
+  int old_height = cv_img.rows;
+  int old_width = cv_img.cols;
+
+  cv::Mat normalized;
+
+  new_height = std::max(new_height, new_width);
+  new_width = new_height;
+
+  if (new_height > old_height || new_width > old_width) {
+  	normalized.create(new_height, new_width, cv_img.type());
+    std::cout << "Padding " << cv_img.size() << " to " << normalized.size() << std::endl;
+  	normalized.setTo(cv::Scalar::all(0));
+  	cv::Rect roi( cv::Point( 0, 0 ), cv_img.size() );
+  	cv_img.copyTo( normalized( roi ) );
+  } else {
+  	cv::Mat padded;
+  	int max_dim = std::max(cv_img.rows, cv_img.cols);
+  	padded.create(max_dim, max_dim, cv_img.type());
+  	padded.setTo(cv::Scalar::all(0));
+    std::cout << "Downscaling " << cv_img.size() << " to " << padded.size() << std::endl;
+  	cv::Rect roi( cv::Point( 0, 0 ), cv_img.size() );
+  	cv_img.copyTo( padded( roi ) );
+
+  	cv::Mat resized(cv::Size(new_height, new_width), cv_img.type());
+    std::cout << "Resizing " << padded.size() << " to " << resized.size() << std::endl;
+  	cv::resize(padded, resized, resized.size(), 0, 0, CV_INTER_AREA);
+  	normalized = resized;
+  }
+
+//  std::cout << "Displaying image" << std::endl << std::cout.flush();
+//  cv::namedWindow( "Display window" );
+//  cv::imshow( "Display window", normalized );
+//  cv::waitKey(0);
+
+  datum->set_channels(3);
+  datum->set_height(normalized.rows);
+  datum->set_width(normalized.cols);
+  datum->set_label(label);
+  datum->clear_data();
+  datum->clear_float_data();
+  string* datum_string = datum->mutable_data();
+  for (int c = 0; c < 3; ++c) {
+    for (int h = 0; h < normalized.rows; ++h) {
+      for (int w = 0; w < normalized.cols; ++w) {
+        datum_string->push_back(
+            static_cast<char>(normalized.at<cv::Vec3b>(h, w)[c]));
+      }
+    }
+  }
+
+  cv_img.release();
+  normalized.release();
+  return true;
+}
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+cv::Mat pad_with_black(cv::Mat& img, int new_rows, int new_cols) {
+
+	cv::Mat padded;
+	std::cout << "img.rows " << img.rows << " img.cols " << img.cols << std::endl;
+
+	std::cout << "Creating padded image " << new_rows << " " << new_cols << std::endl << std::cout.flush();
+	padded.create(new_rows, new_cols, img.type());
+
+	std::cout << "Setting to black" << std::endl << std::cout.flush();
+  padded.setTo(cv::Scalar::all(0));
+
+	std::cout << "Copying original image to padded image" << std::endl << std::cout.flush();
+	//img.copyTo(padded(cv::Rect(0, 0, img.rows-1, img.cols-1)));
+
+	cv::Rect roi( cv::Point( 0, 0 ), img.size() );
+	img.copyTo( padded( roi ) );
+
+//	std::cout << "Creating rect" << std::endl << std::cout.flush();
+//	cv::Rect rect = cv::Rect(0, 0, img.rows, img.cols);
+//	std::cout << "Creating roi" << std::endl << std::cout.flush();
+//	cv::Mat roi = padded(rect);
+//	std::cout << "Copying original image to padded image" << std::endl << std::cout.flush();
+//	img.copyTo(roi);
+
+  cv::namedWindow( "Display window", cv::WINDOW_NORMAL );// Create a window for display.
+  cv::imshow( "Display window", padded );                   // Show our image inside it.
+  cv::waitKey(0);
+
+	std::cout << "Done" << std::endl << std::cout.flush();
+	return padded;
 }
 
 // Verifies format of data stored in HDF5 file and reshapes blob accordingly.

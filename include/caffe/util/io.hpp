@@ -3,6 +3,8 @@
 #ifndef CAFFE_UTIL_IO_H_
 #define CAFFE_UTIL_IO_H_
 
+#include <opencv2/core/core.hpp>
+
 #include <string>
 
 #include "google/protobuf/message.h"
@@ -63,10 +65,22 @@ inline void WriteProtoToBinaryFile(
 bool ReadImageToDatum(const string& filename, const int label,
     const int height, const int width, Datum* datum);
 
+bool ReadAndResizeImageToDatum(const string& filename, const int label,
+    const int height, const int width, const int new_height, const int new_width,
+    Datum* datum);
+
+
 inline bool ReadImageToDatum(const string& filename, const int label,
     Datum* datum) {
   return ReadImageToDatum(filename, label, 0, 0, datum);
 }
+
+inline bool ReadAndResizeImageToDatum(const string& filename, const int label,
+		const int new_height, const int new_width, Datum* datum) {
+  return ReadAndResizeImageToDatum(filename, label, 0, 0, new_height, new_width, datum);
+}
+
+cv::Mat pad_with_black(cv::Mat& img, int new_rows, int new_cols);
 
 template <typename Dtype>
 void hdf5_load_nd_dataset_helper(

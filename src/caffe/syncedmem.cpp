@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 
 #include <cstring>
+#include <iostream>
 
 #include "caffe/common.hpp"
 #include "caffe/syncedmem.hpp"
@@ -44,6 +45,7 @@ inline void SyncedMemory::to_cpu() {
 inline void SyncedMemory::to_gpu() {
   switch (head_) {
   case UNINITIALIZED:
+  	std::cout << "cudamalloc: " << size_ << std::endl << std::cout();
     CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
     CUDA_CHECK(cudaMemset(gpu_ptr_, 0, size_));
     head_ = HEAD_AT_GPU;
